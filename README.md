@@ -1,6 +1,6 @@
 # Note-Taking App
 
-A full-stack note-taking application built with Node.js, Express, MongoDB, and React.
+A full-stack note-taking application built with Node.js, Express, MongoDB.
 
 ## Features
 
@@ -66,21 +66,7 @@ note-taking-app/
 └── package.json      # Project dependencies
 ```
 
-## Technologies Used
 
-- Backend:
-  - Node.js
-  - Express.js
-  - MongoDB
-  - Mongoose
-  - JWT Authentication
-  - bcryptjs
-
-- Frontend:
-  - React
-  - React Router
-  - Axios
-  - Material-UI
 
 ## Security Features
 
