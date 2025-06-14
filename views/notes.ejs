@@ -1,0 +1,291 @@
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>My Notes</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createNoteModal">
+                    <i class="fas fa-plus"></i> New Note
+                </button>
+            </div>
+
+            <div id="filter-info" class="mb-3"></div>
+
+            <div id="notes-container" class="row">
+                <!-- Notes will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals have been moved to layout.ejs for correct z-index stacking -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const notesContainer = document.getElementById('notes-container');
+    const createNoteForm = document.getElementById('createNoteForm');
+    const editNoteForm = document.getElementById('editNoteForm');
+    const saveNoteBtn = document.getElementById('saveNoteBtn');
+    const updateNoteBtn = document.getElementById('updateNoteBtn');
+
+    let currentTagFilter = null; // Stores the currently active tag filter
+    let noteIdToDelete = null;
+
+    // --- Helper Functions for Note Actions --- 
+    async function editNote(noteId) {
+        try {
+            const response = await fetch(`/api/notes/${noteId}`);
+            const note = await response.json();
+            if (!response.ok) throw new Error(note.error || 'Failed to fetch note details');
+            
+            document.getElementById('editNoteId').value = note.id;
+            document.getElementById('editTitle').value = note.title;
+            document.getElementById('editContent').value = note.content;
+            document.getElementById('editTags').value = note.tags ? note.tags.join(', ') : '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('editNoteModal'));
+            modal.show();
+        } catch (error) {
+            showFlashMessage(error.message, 'danger');
+        }
+    }
+
+    async function deleteNote(noteId) {
+        showDeleteModal(noteId);
+    }
+
+    // --- Use Event Delegation for Note Actions ---
+    notesContainer.addEventListener('click', function(event) {
+        const editButton = event.target.closest('.edit-note');
+        if (editButton) {
+            event.preventDefault();
+            const noteId = editButton.dataset.noteId;
+            editNote(noteId);
+            return;
+        }
+
+        const deleteButton = event.target.closest('.delete-note');
+        if (deleteButton) {
+            event.preventDefault();
+            const noteId = deleteButton.dataset.noteId;
+            deleteNote(noteId);
+            return;
+        }
+    });
+
+    // --- Main Function to Load Notes ---
+    async function loadNotes(tagToFilter = null) {
+        currentTagFilter = tagToFilter;
+        // Store current user ID on notesContainer for other functions to potentially access
+        if (window.currentUser && window.currentUser.id) {
+            notesContainer.dataset.userId = window.currentUser.id;
+        }
+
+        try {
+            let apiUrl = '/api/notes';
+            if (currentTagFilter) {
+                apiUrl += `?tag=${encodeURIComponent(currentTagFilter)}`;
+            }
+
+            const filterInfoEl = document.getElementById('filter-info');
+            if (filterInfoEl) {
+                if (currentTagFilter) {
+                    filterInfoEl.innerHTML = `
+                        <p class="mb-2">
+                            Showing notes tagged: 
+                            <span class="badge bg-primary">${currentTagFilter}</span>
+                            <button class="btn btn-sm btn-link p-0 ms-1" onclick="loadNotes(null)">Clear filter</button>
+                        </p>
+                    `;
+                } else {
+                    filterInfoEl.innerHTML = '';
+                }
+            }
+
+            notesContainer.innerHTML = '<div class="col-12 text-center"><div class="spinner-border" role="status"></div></div>';
+            const response = await fetch(apiUrl);
+            const notes = await response.json();
+            if (!response.ok) throw new Error(notes.error || 'Failed to load notes');
+
+            if (notes.length === 0) {
+                let noNotesMessage = 'No notes found';
+                if (currentTagFilter) {
+                    noNotesMessage += ` with tag \'${currentTagFilter}\'`;
+                } else {
+                    noNotesMessage += '. Create your first note!';
+                }
+                notesContainer.innerHTML = `<div class="col-12 text-center"><p>${noNotesMessage}</p></div>`;
+                return;
+            }
+
+            notesContainer.innerHTML = notes.map(note => {
+                let tagsHTML = '';
+                if (note.tags && note.tags.length > 0) {
+                    tagsHTML = `
+                        <div class="note-tags">
+                            ${note.tags.map(tag => 
+                                `<span class="tag">${tag}</span>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                return `
+                <div class="col-md-4 mb-4">
+                    <div class="note-card glass-card fade-in">
+                        <h3 class="note-title mb-2">${note.title}</h3>
+                        <div class="note-content mb-2">
+                            <p>${note.content.split('\n')[0].length > 60 ? note.content.split('\n')[0].slice(0, 60) + '...' : note.content.split('\n')[0]}</p>
+                        </div>
+                        <div class="note-tags mb-2">
+                            ${(note.tags && note.tags.length > 0) ? note.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}
+                        </div>
+                        <div class="note-card-bottom d-flex justify-content-between align-items-center mt-auto pt-2">
+                            <div class="note-actions">
+                                <button class="icon-btn edit-note" data-note-id="${note.id}" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="icon-btn delete-note" data-note-id="${note.id}" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <div class="dropdown d-inline">
+                                    <button class="icon-btn dropdown-toggle" type="button" id="downloadDropdown-${note.id}" data-bs-toggle="dropdown" aria-expanded="false" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="downloadDropdown-${note.id}">
+                                        <li><a class="dropdown-item" href="#" onclick="downloadNote('${note.id}', 'pdf'); return false;">PDF</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="downloadNote('${note.id}', 'md'); return false;">Markdown</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="downloadNote('${note.id}', 'txt'); return false;">Text</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <span class="note-date">${new Date(note.createdAt).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;}).join('');
+
+        } catch (error) {
+            showFlashMessage(error.message, 'danger');
+            notesContainer.innerHTML = `<div class="col-12 text-center"><p class="text-danger">${error.message}</p></div>`;
+        }
+    }
+
+    // --- Event Listeners for Modal Forms (Create/Update) ---
+    saveNoteBtn.addEventListener('click', async function() {
+        const title = document.getElementById('title').value.trim();
+        const content = document.getElementById('content').value.trim();
+        const tagsString = document.getElementById('tags').value.trim();
+        const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+        if (!title || !content) {
+            showFlashMessage('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        try {
+            saveNoteBtn.disabled = true;
+            saveNoteBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+            const response = await fetch('/api/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content, tags })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to create note');
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createNoteModal'));
+            modal.hide();
+            createNoteForm.reset();
+            loadNotes(currentTagFilter); // Refresh notes, maintaining filter
+        } catch (error) {
+            showFlashMessage(error.message, 'danger');
+        } finally {
+            saveNoteBtn.disabled = false;
+            saveNoteBtn.innerHTML = 'Save Note';
+        }
+    });
+
+    updateNoteBtn.addEventListener('click', async function() {
+        const noteId = document.getElementById('editNoteId').value;
+        const title = document.getElementById('editTitle').value.trim();
+        const content = document.getElementById('editContent').value.trim();
+        const tagsString = document.getElementById('editTags').value.trim();
+        const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+        if (!title || !content) {
+            showFlashMessage('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        try {
+            updateNoteBtn.disabled = true;
+            updateNoteBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Updating...';
+            const response = await fetch(`/api/notes/${noteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content, tags })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to update note');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editNoteModal'));
+            modal.hide();
+            editNoteForm.reset();
+            loadNotes(currentTagFilter); // Refresh notes, maintaining filter
+        } catch (error) {
+            showFlashMessage(error.message, 'danger');
+        } finally {
+            updateNoteBtn.disabled = false;
+            updateNoteBtn.innerHTML = 'Update Note';
+        }
+    });
+
+    function showDeleteModal(noteId) {
+        noteIdToDelete = noteId;
+        const modal = new bootstrap.Modal(document.getElementById('deleteNoteModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmDeleteNoteBtn').addEventListener('click', async function() {
+        if (!noteIdToDelete) return;
+        try {
+            const response = await fetch(`/api/notes/${noteIdToDelete}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to delete note');
+            showFlashMessage('Note deleted successfully!', 'success');
+            loadNotes(currentTagFilter);
+        } catch (error) {
+            showFlashMessage(error.message, 'danger');
+        } finally {
+            noteIdToDelete = null;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteNoteModal'));
+            modal.hide();
+        }
+    });
+
+    // Initial load
+    loadNotes(); 
+});
+
+function showFlashMessage(message, type = 'info', duration = 3000) {
+    const flashContainer = document.createElement('div');
+    flashContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show fixed-top m-3" role="alert" style="z-index: 1055;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    document.body.appendChild(flashContainer);
+    setTimeout(() => {
+        const alertInstance = bootstrap.Alert.getInstance(flashContainer.querySelector('.alert'));
+        if (alertInstance) {
+            alertInstance.close();
+        } else {
+            // Fallback if instance not found, directly remove after timeout
+            if (flashContainer.firstChild) {
+                flashContainer.firstChild.classList.remove('show'); // Start fade out
+                setTimeout(() => flashContainer.remove(), 150); // Remove after fade
+            }
+        }
+    }, duration);
+}
+</script>

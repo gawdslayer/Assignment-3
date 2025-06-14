@@ -1,0 +1,72 @@
+<div class="container mt-5 pt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0 text-center"><i class="fas fa-sign-in-alt me-2"></i>Log In to Your Account</h3>
+                </div>
+                <div class="card-body p-4">
+
+                    <% /* Display General Success Message (e.g., after logout) */ %>
+                    <% if (typeof success_msg !== 'undefined' && success_msg && success_msg.length > 0) { %>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <%= success_msg %>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    <% } %>
+
+                    <% /* Display General Error Messages */ %>
+                    <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <%= error_msg %>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    <% } %>
+
+                    <% /* Display Validation Errors (as a list) */ %>
+                    <% if (typeof validation_errors !== 'undefined' && validation_errors && validation_errors.length > 0) { %>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <ul class="mb-0 ps-3">
+                                <% validation_errors.forEach(function(error) { %>
+                                    <li><%= error.msg %></li>
+                                <% }); %>
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    <% } %>
+
+                    <form action="/login" method="POST" novalidate>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email address</label>
+                            <input type="email" 
+                                   class="form-control <%= (typeof validation_errors !== 'undefined' && validation_errors.find(e => e.path === 'email')) ? 'is-invalid' : '' %>" 
+                                   id="email" 
+                                   name="email" 
+                                   value="<%= (typeof form_data !== 'undefined' && form_data.email) ? form_data.email : '' %>"
+                                   required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" 
+                                   class="form-control <%= (typeof validation_errors !== 'undefined' && validation_errors.find(e => e.path === 'password')) ? 'is-invalid' : '' %>" 
+                                   id="password" 
+                                   name="password" 
+                                   required>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Log In
+                            </button>
+                        </div>
+                    </form>
+                    <hr class="my-4">
+                    <p class="text-center">
+                        Don't have an account? <a href="/register">Register Here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

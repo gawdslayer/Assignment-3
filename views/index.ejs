@@ -1,0 +1,42 @@
+<div class="text-center">
+    <h1 class="display-4 mb-4">Welcome to Note Taking App</h1>
+    <p class="lead">A simple and secure way to manage your notes</p>
+    
+    <% if (!locals.user) { %>
+        <div class="mt-4">
+            <a href="/login" class="btn btn-primary me-2">Login</a>
+            <a href="/register" class="btn btn-outline-primary">Register</a>
+        </div>
+    <% } else { %>
+        <div class="mt-4">
+            <a href="/notes" class="btn btn-primary">Go to My Notes</a>
+        </div>
+    <% } %>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Secure</h5>
+                <p class="card-text">Your notes are protected with industry-standard security measures.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Simple</h5>
+                <p class="card-text">Easy to use interface for managing your notes efficiently.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Accessible</h5>
+                <p class="card-text">Access your notes from anywhere, anytime.</p>
+            </div>
+        </div>
+    </div>
+</div> 
